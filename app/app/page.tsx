@@ -1,38 +1,46 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import Link from "next/link"
 import { CloneCard } from "@/components/clone-card"
 import { EmptyState } from "@/components/empty-state"
 import type { Clone } from "@/lib/types"
-
-// Mock data - will be replaced with real data from API
-const mockClones: Clone[] = [
-  {
-    id: "1",
-    name: "Tech Influencer Style",
-    platforms: ["x", "threads"],
-    createdAt: new Date("2025-01-01"),
-    updatedAt: new Date("2025-01-15"),
-    status: "ready",
-  },
-  {
-    id: "2",
-    name: "Fitness Coach Tone",
-    platforms: ["instagram", "tiktok"],
-    createdAt: new Date("2025-01-10"),
-    updatedAt: new Date("2025-01-14"),
-    status: "ready",
-  },
-]
+import { listClones, deleteClone } from "@/lib/api"
+import { useAuth } from "@/hooks/useAuth" // Assuming you have a useAuth hook
 
 export default function DashboardPage() {
-  const [clones, setClones] = useState<Clone[]>(mockClones)
+  const [clones, setClones] = useState<Clone[]>([])
+  const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
 
-  const handleDelete = (id: string) => {
-    setClones(clones.filter((clone) => clone.id !== id))
+  useEffect(() => {
+    if (user) {
+      listClones()
+        .then((response) => {
+          const data = response.data as Clone[]
+          setClones(data)
+          setLoading(false)
+        })
+        .catch((error) => {
+          console.error("Error fetching clones:", error)
+          setLoading(false)
+        })
+    }
+  }, [user])
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteClone({ id })
+      setClones(clones.filter((clone) => clone.id !== id))
+    } catch (error) {
+      console.error("Error deleting clone:", error)
+    }
+  }
+
+  if (loading) {
+    return <div>Loading...</div>
   }
 
   return (

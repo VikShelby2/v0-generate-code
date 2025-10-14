@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -11,86 +11,60 @@ import { ViralScore } from "@/components/viral-score"
 import { SchedulerModal, type ScheduleData } from "@/components/scheduler-modal"
 import { ArrowLeft, Copy, Calendar, Download, RefreshCw, Trash2, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-
-// Mock data
-const mockClone = {
-  id: "1",
-  name: "Tech Influencer Style",
-  platforms: ["x", "threads"],
-}
-
-const mockGeneratedContent = `🚀 Just discovered the secret to 10x productivity
-
-Most people think it's about working harder.
-
-They're wrong.
-
-Here's what actually works:
-
-1. Deep work blocks (2-3 hours, no distractions)
-2. Strategic breaks (not scrolling, actual rest)
-3. Single-tasking (multitasking is a myth)
-
-The result? I ship more in 4 hours than most do in 8.
-
-Try it for a week. Thank me later.
-
-#productivity #deepwork #focus`
-
-const mockAlts = [
-  `Want to know the real productivity hack?
-
-It's not about hustle culture or grinding 24/7.
-
-It's about working smarter, not harder.
-
-Here's my framework:
-• 2-3 hour deep work sessions
-• Real breaks (no phone)
-• One task at a time
-
-This changed everything for me.
-
-#productivity #worksmarter`,
-  `The productivity secret nobody talks about:
-
-Most "productive" people aren't working more hours.
-
-They're working differently.
-
-My 3-step system:
-1. Deep focus blocks
-2. Intentional rest
-3. Zero multitasking
-
-Results speak for themselves.
-
-#productivity #focus`,
-]
+import { generatePost, deleteClone } from "@/lib/api"
+import { useAuth } from "@/hooks/useAuth"
+import type { Clone, GeneratedPost } from "@/lib/types"
 
 export default function CloneDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
+  const { user } = useAuth()
+  const [clone, setClone] = useState<Clone | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [draft, setDraft] = useState("")
   const [alts, setAlts] = useState<string[]>([])
   const [viralScore, setViralScore] = useState(0)
   const [schedulerOpen, setSchedulerOpen] = useState(false)
 
+  useEffect(() => {
+    if (user && params.id) {
+      // In a real app, you would fetch the clone data here
+      // For now, we'll just set it from a mock
+      setClone({ 
+        id: params.id as string, 
+        name: "Tech Influencer Style", 
+        platforms: ["x", "threads"], 
+        createdAt: new Date(), 
+        updatedAt: new Date(), 
+        status: "ready"
+      })
+    }
+  }, [user, params.id])
+
   const handleGenerate = async (config: GenerateConfig) => {
+    if (!clone) return
     setIsGenerating(true)
-    // Mock generation - will be replaced with API call
-    setTimeout(() => {
-      setDraft(mockGeneratedContent)
-      setAlts(mockAlts)
-      setViralScore(Math.floor(Math.random() * 30) + 70) // Random score 70-100
-      setIsGenerating(false)
+    try {
+      const response = await generatePost({ cloneId: clone.id, topic: config.topic })
+      const data = response.data as GeneratedPost
+      setDraft(data.content)
+      setAlts([]) // Assuming the API returns only one post for now
+      setViralScore(data.viralScore)
       toast({
         title: "Content generated!",
         description: "Your post is ready to edit and publish.",
       })
-    }, 2000)
+    } catch (error) {
+      console.error("Error generating post:", error)
+      toast({
+        title: "Error generating post",
+        description: "Please try again later.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   const handleAcceptAlt = (index: number) => {
@@ -116,9 +90,23 @@ export default function CloneDetailPage() {
     })
   }
 
-  const handleDelete = () => {
-    // Mock delete
-    router.push("/app")
+  const handleDelete = async () => {
+    if (!clone) return
+    try {
+      await deleteClone({ id: clone.id })
+      router.push("/app")
+    } catch (error) {
+      console.error("Error deleting clone:", error)
+      toast({
+        title: "Error deleting clone",
+        description: "Please try again later.",
+        variant: "destructive",
+      })
+    }
+  }
+  
+  if (!clone) {
+    return <div>Loading...</div>
   }
 
   return (
@@ -131,9 +119,9 @@ export default function CloneDetailPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-4xl font-bold mb-2">{mockClone.name}</h1>
+          <h1 className="text-4xl font-bold mb-2">{clone.name}</h1>
           <div className="flex items-center gap-2">
-            {mockClone.platforms.map((platform) => (
+            {clone.platforms.map((platform) => (
               <Badge key={platform} variant="secondary">
                 {platform}
               </Badge>

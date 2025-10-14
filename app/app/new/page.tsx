@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Slider } from "@/components/ui/slider"
 import { ArrowLeft, ArrowRight, Check } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { createClone } from "@/lib/api"
 
 const platforms = [
   { id: "x", name: "X (Twitter)", icon: "𝕏" },
@@ -30,6 +31,8 @@ export default function NewClonePage() {
     length: 50,
     keywords: "",
   })
+  const [isCreating, setIsCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handlePlatformToggle = (platformId: string) => {
     setFormData((prev) => ({
@@ -40,9 +43,18 @@ export default function NewClonePage() {
     }))
   }
 
-  const handleCreate = () => {
-    // Mock creation - will be replaced with API call
-    router.push("/app")
+  const handleCreate = async () => {
+    setIsCreating(true)
+    setError(null)
+    try {
+      await createClone({ name: formData.name, platforms: formData.platforms })
+      router.push("/app")
+    } catch (err) {
+      setError("Failed to create clone. Please try again.")
+      console.error(err)
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   return (
@@ -220,6 +232,8 @@ export default function NewClonePage() {
           </div>
         )}
 
+        {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+
         <div className="flex gap-3 mt-8">
           {step > 1 && (
             <Button variant="outline" onClick={() => setStep(step - 1)} className="flex-1">
@@ -237,8 +251,8 @@ export default function NewClonePage() {
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           ) : (
-            <Button onClick={handleCreate} className="flex-1">
-              Create Clone
+            <Button onClick={handleCreate} className="flex-1" disabled={isCreating}>
+              {isCreating ? "Creating..." : "Create Clone"}
             </Button>
           )}
         </div>
